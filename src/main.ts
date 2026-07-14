@@ -33,7 +33,7 @@ export const defaultPatient: PatientData = {
 
 // This function verifies the submission by checking for the success toast.
 async function verifySubmission(page: Page) {
-  const success = page.getByText("Form submitted successfully!", { exact: false });
+  const success = page.getByText("Form submitted successfully", { exact: false });
 
   try {
     await success.waitFor({ state: "visible", timeout: 8000 });
@@ -62,7 +62,9 @@ export async function main(patient: PatientData = defaultPatient) {
             const field = el as HTMLInputElement;
             const label =
               document.querySelector(`label[for="${field.id}"]`)?.textContent?.trim() ?? "";
-              const options = el.tagName == "SELECT" ? [[...(el as HTMLSelectElement).options].map((o) => o.value).filter(Boolean)] : undefined;
+              const options = el.tagName == "SELECT" 
+              ? [[...(el as HTMLSelectElement).options].map((o) => o.value).filter(Boolean)] 
+              : undefined;
             return {
               label,
               id: field.id,
@@ -147,14 +149,14 @@ export async function main(patient: PatientData = defaultPatient) {
     `- Emergency Contact Phone: ${patient.emergencyContactPhone}\n\n` +
     "Then submit the form.",
   });
-  console.log("Agent's own summary:\n", result.text);
+console.log("Agent's own summary:\n", result.text);
 
-  // The *ground truth* — what the page actually shows.
   const check = await verifySubmission(page);
-  if (check.verified) {
-    console.log(`\n VERIFIED: ${check.evidence}`);
-  } else {
-    console.error(`\nNOT VERIFIED: ${check.evidence}`);
-    process.exitCode = 1;
-  }
+  if (check.verified) console.log(`\nVERIFIED: ${check.evidence}`);
+  else console.error(`\nNOT VERIFIED: ${check.evidence}`);
+
+  // Close the browser so repeated runs don't pile up Chromium processes.
+  await page.context().browser()?.close();
+
+  return { verified: check.verified, evidence: check.evidence, summary: result.text };
 }
