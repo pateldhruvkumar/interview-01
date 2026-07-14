@@ -36,12 +36,14 @@ export async function main() {
             const field = el as HTMLInputElement;
             const label =
               document.querySelector(`label[for="${field.id}"]`)?.textContent?.trim() ?? "";
+              const options = el.tagName == "SELECT" ? [[...(el as HTMLSelectElement).options].map((o) => o.value).filter(Boolean)] : undefined;
             return {
               label,
               id: field.id,
               name: field.name,
               type: field.type,
               value: field.value,
+              options,
             };
           })
         );
@@ -62,6 +64,21 @@ export async function main() {
       },
     }),
 
+    // This tool is used to select an option from a dropdown on the page.
+    selectDropdown: tool({
+      description:
+        "Choose an option in a <select> dropdown (Gender, Blood Type). Use instead of " +
+        "fillField for dropdowns. Matches option value or visible label.",
+      inputSchema: z.object({
+        selector: z.string().describe("CSS selector for the <select>, e.g. '#gender'"),
+        value: z.string().describe("Option to choose, e.g. 'male' or 'O+'"),
+      }),
+      execute: async ({ selector, value }) => {
+        await page.selectOption(selector, value);
+        return { ok: true, selector, value };
+      },
+    }),
+
     // This tool is used to click a button on the page.
     clickButton: tool({
       description: "Click a button by its visible text, e.g. 'Submit'.",
@@ -78,18 +95,23 @@ export async function main() {
   const result = await generateText({
     model,
     tools,
-    stopWhen: stepCountIs(15),
+    stopWhen: stepCountIs(25),
     system:
-      "You fill out web forms. First call readForm to see the fields. " +
-      "Match each piece of data to the correct field using its label, then call fillField for each one. " +
-      "When every field is filled, click the Submit button. Never invent fields that don't exist.",
+    "You fill out a multi-section accordion form. The sections ('Personal Information', " +
+    "'Medical Information', 'Emergency Contact') are collapsible: click a section's header " +
+    "button to reveal its fields before filling them. The first section is already open. " +
+    "Only one section is open at a time, but entered data is preserved when a section collapses. " +
+    "For each section: expand it if needed, call readForm, then fill every field — fillField for " +
+    "text/date/textarea, selectDropdown for <select> dropdowns. Only use option values readForm " +
+    "reported. After all three sections are complete, click Submit.",
     prompt:
-      "Fill out the patient intake form:\n" +
-      "- First Name: John\n" +
-      "- Last Name: Doe\n" +
-      "- Date of Birth: 1990-01-01\n" +
-      "- Medical ID: 91927885\n" +
-      "Then submit the form.",
+    "Fill out the entire form across all three sections:\n\n" +
+    "Personal Information:\n- First Name: John\n- Last Name: Doe\n" +
+    "- Date of Birth: 1990-01-01\n- Medical ID: 91927885\n\n" +
+    "Medical Information:\n- Gender: Male\n- Blood Type: O+\n" +
+    "- Allergies: Penicillin\n- Current Medications: None\n\n" +
+    "Emergency Contact:\n- Emergency Contact Name: Jane Doe\n" +
+    "- Emergency Contact Phone: 555-123-4567\n\nThen submit the form.",
   });
   console.log("Agent's own summary:\n", result.text);
 
