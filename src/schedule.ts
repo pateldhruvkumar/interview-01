@@ -1,7 +1,7 @@
 import "dotenv-defaults/config";
 import { main } from "./main";
 
-const EVERY_MS = 5 *60 * 1000;
+const EVERY_MS = 5 * 60 * 1000;
 
 async function runOnce() {
   const at = new Date().toISOString();

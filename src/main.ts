@@ -62,8 +62,8 @@ export async function main(patient: PatientData = defaultPatient) {
             const field = el as HTMLInputElement;
             const label =
               document.querySelector(`label[for="${field.id}"]`)?.textContent?.trim() ?? "";
-              const options = el.tagName == "SELECT" 
-              ? [[...(el as HTMLSelectElement).options].map((o) => o.value).filter(Boolean)] 
+              const options = el.tagName === "SELECT"
+              ? [...(el as HTMLSelectElement).options].map((o) => o.value).filter(Boolean)
               : undefined;
             return {
               label,
