@@ -1,14 +1,31 @@
 import { generateText, stepCountIs, tool } from "ai";
+import { Page } from "playwright";
 import { z } from "zod";
 import { model } from "./_internal/setup";
 import { createSession } from "./session";
+
+
+// This function verifies the submission by checking for the success toast.
+async function verifySubmission(page: Page) {
+  const success = page.getByText("Form submitted successfully!", { exact: false });
+
+  try {
+    await success.waitFor({ state: "visible", timeout: 8000 });
+    const heading = (await success.textContent())?.trim() ?? "";
+    const detail =
+      (await page.getByText("Your medical information has been saved.").textContent())?.trim() ?? "";
+    return { verified: true as const, evidence: [heading, detail].filter(Boolean).join(" — ") };
+  } catch {
+    return { verified: false as const, evidence: "No success confirmation appeared on the page." };
+  }
+}
 
 export async function main() {
   // Launches Chromium and navigates to the form. `page` is our Playwright handle.
   const page = await createSession("https://magical-medical-form.netlify.app/");
 
+  // This is the tools that the model can use to interact with the page.
   const tools = {
-    // PERCEPTION: let the (blind) model discover what's on the page.
     readForm: tool({
       description:
         "Read every form field on the page. Returns each field's label, id, name, type and current value.",
@@ -32,7 +49,7 @@ export async function main() {
       },
     }),
 
-    // ACTION: type a value into a field.
+    // This tool is used to fill a field on the page.
     fillField: tool({
       description: "Enter a value into a form field selected by CSS selector (e.g. '#firstName').",
       inputSchema: z.object({
@@ -45,7 +62,7 @@ export async function main() {
       },
     }),
 
-    // ACTION: click a button by its visible text.
+    // This tool is used to click a button on the page.
     clickButton: tool({
       description: "Click a button by its visible text, e.g. 'Submit'.",
       inputSchema: z.object({
@@ -61,7 +78,7 @@ export async function main() {
   const result = await generateText({
     model,
     tools,
-    stopWhen: stepCountIs(15), // read -> fill x4 -> submit, with reasoning in between
+    stopWhen: stepCountIs(15),
     system:
       "You fill out web forms. First call readForm to see the fields. " +
       "Match each piece of data to the correct field using its label, then call fillField for each one. " +
@@ -74,6 +91,14 @@ export async function main() {
       "- Medical ID: 91927885\n" +
       "Then submit the form.",
   });
+  console.log("Agent's own summary:\n", result.text);
 
-  console.log("Agent finished. Summary:\n", result.text);
+  // The *ground truth* — what the page actually shows.
+  const check = await verifySubmission(page);
+  if (check.verified) {
+    console.log(`\n VERIFIED: ${check.evidence}`);
+  } else {
+    console.error(`\nNOT VERIFIED: ${check.evidence}`);
+    process.exitCode = 1;
+  }
 }
