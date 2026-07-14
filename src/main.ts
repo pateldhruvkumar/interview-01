@@ -4,6 +4,32 @@ import { z } from "zod";
 import { model } from "./_internal/setup";
 import { createSession } from "./session";
 
+export type PatientData = {
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string; // Date format: "YYYY-MM-DD"
+  medicalId: string;
+  gender: string; // matches a Gender dropdown option
+  bloodType: string; // matches a Blood Type dropdown option
+  allergies: string;
+  medications: string;
+  emergencyContactName: string;
+  emergencyContactPhone: string;
+};
+
+export const defaultPatient: PatientData = {
+  firstName: "John",
+  lastName: "Doe",
+  dateOfBirth: "1990-01-01",
+  medicalId: "91927885",
+  gender: "Male",
+  bloodType: "O+",
+  allergies: "Penicillin",
+  medications: "None",
+  emergencyContactName: "Jane Doe",
+  emergencyContactPhone: "555-123-4567",
+};
+
 
 // This function verifies the submission by checking for the success toast.
 async function verifySubmission(page: Page) {
@@ -20,7 +46,7 @@ async function verifySubmission(page: Page) {
   }
 }
 
-export async function main() {
+export async function main(patient: PatientData = defaultPatient) {
   // Launches Chromium and navigates to the form. `page` is our Playwright handle.
   const page = await createSession("https://magical-medical-form.netlify.app/");
 
@@ -106,12 +132,20 @@ export async function main() {
     "reported. After all three sections are complete, click Submit.",
     prompt:
     "Fill out the entire form across all three sections:\n\n" +
-    "Personal Information:\n- First Name: John\n- Last Name: Doe\n" +
-    "- Date of Birth: 1990-01-01\n- Medical ID: 91927885\n\n" +
-    "Medical Information:\n- Gender: Male\n- Blood Type: O+\n" +
-    "- Allergies: Penicillin\n- Current Medications: None\n\n" +
-    "Emergency Contact:\n- Emergency Contact Name: Jane Doe\n" +
-    "- Emergency Contact Phone: 555-123-4567\n\nThen submit the form.",
+    "Personal Information:\n" +
+    `- First Name: ${patient.firstName}\n` +
+    `- Last Name: ${patient.lastName}\n` +
+    `- Date of Birth: ${patient.dateOfBirth}\n` +
+    `- Medical ID: ${patient.medicalId}\n\n` +
+    "Medical Information:\n" +
+    `- Gender: ${patient.gender}\n` +
+    `- Blood Type: ${patient.bloodType}\n` +
+    `- Allergies: ${patient.allergies}\n` +
+    `- Current Medications: ${patient.medications}\n\n` +
+    "Emergency Contact:\n" +
+    `- Emergency Contact Name: ${patient.emergencyContactName}\n` +
+    `- Emergency Contact Phone: ${patient.emergencyContactPhone}\n\n` +
+    "Then submit the form.",
   });
   console.log("Agent's own summary:\n", result.text);
 
